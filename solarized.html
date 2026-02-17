@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Solarized</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: black;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* CANVAS */
+canvas {
+    display: none;
+}
+
+/* TIME DISPLAY */
+#clock {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #cfd6ff;
+    font-size: 20px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(140,160,255,0.8);
+    z-index: 5;
+    display: none;
+}
+
+/* MENU */
+#menu {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, #0a0f2a, #000);
+}
+
+.menu-content {
+    text-align: center;
+}
+
+#logo {
+    font-size: 72px;
+    letter-spacing: 4px;
+    background: linear-gradient(120deg, #c7d2ff, #7f9cff, #ffffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 40px rgba(140,160,255,0.7);
+    margin-bottom: 30px;
+}
+
+#play {
+    padding: 14px 50px;
+    font-size: 20px;
+    color: white;
+    background: linear-gradient(135deg, #4a63ff, #8fa2ff);
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 0 25px rgba(120,140,255,0.6);
+}
+#play:hover { transform: scale(1.08); }
+</style>
+</head>
+<body>
+
+<div id="menu">
+    <div class="menu-content">
+        <div id="logo">Solarized</div>
+        <button id="play">Play</button>
+    </div>
+</div>
+
+<div id="clock"></div>
+<canvas id="space"></canvas>
+
+<script>
+const canvas = document.getElementById("space");
+const ctx = canvas.getContext("2d");
+const menu = document.getElementById("menu");
+const playBtn = document.getElementById("play");
+const clock = document.getElementById("clock");
+
+let running = false;
+
+/* RESIZE */
+function resize() {
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+}
+addEventListener("resize", resize);
+
+/* CLOCK */
+function updateClock() {
+    const now = new Date();
+    clock.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+}
+setInterval(updateClock, 1000);
+
+/* STARS */
+const stars = [];
+function initStars() {
+    stars.length = 0;
+    for (let i = 0; i < 700; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 1.5,
+            a: Math.random() * 10
+        });
+    }
+}
+
+/* COMETS */
+let comets = [];
+function spawnComet() {
+    comets.push({
+        x: -300,
+        y: Math.random() * canvas.height,
+        vx: 9 + Math.random() * 3,
+        tail: []
+    });
+}
+setInterval(() => running && spawnComet(), 10000);
+
+/* GALAXIES (HIGH QUALITY) */
+let galaxies = [];
+function spawnGalaxy() {
+    galaxies.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        rot: 0,
+        opacity: 0,
+        life: 0,
+        size: 1 + Math.random()
+    });
+}
+setInterval(() => running && spawnGalaxy(), 20000);
+
+function drawStars() {
+    stars.forEach(s => {
+        s.a += 0.02;
+        ctx.fillStyle = `rgba(255,255,255,${0.4 + Math.sin(s.a)*0.6})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawComets() {
+    comets.forEach((c, i) => {
+        c.tail.push({x: c.x, y: c.y});
+        if (c.tail.length > 50) c.tail.shift();
+
+        for (let j = 0; j < c.tail.length; j++) {
+            ctx.strokeStyle = `rgba(200,220,255,${j / c.tail.length})`;
+            ctx.beginPath();
+            ctx.moveTo(c.tail[j].x, c.tail[j].y);
+            ctx.lineTo(c.x, c.y);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = "white";
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        c.x += c.vx;
+        if (c.x > canvas.width + 400) comets.splice(i, 1);
+    });
+}
+
+function drawGalaxies() {
+    galaxies.forEach((g, i) => {
+        g.rot += 0.0015;
+        g.opacity = Math.min(1, g.opacity + 0.004);
+        g.life++;
+
+        ctx.save();
+        ctx.translate(g.x, g.y);
+        ctx.rotate(g.rot);
+        ctx.globalAlpha = g.opacity;
+
+        for (let j = 0; j < 900; j++) {
+            const angle = j * 0.18;
+            const radius = j * 0.25 * g.size;
+            ctx.fillStyle = `rgba(180,190,255,0.7)`;
+            ctx.beginPath();
+            ctx.arc(
+                Math.cos(angle) * radius,
+                Math.sin(angle) * radius,
+                1,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
+        ctx.restore();
+
+        if (g.life > 900) galaxies.splice(i, 1);
+    });
+}
+
+function animate() {
+    if (!running) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawStars();
+    drawGalaxies();
+    drawComets();
+    requestAnimationFrame(animate);
+}
+
+/* PLAY */
+playBtn.onclick = () => {
+    menu.style.display = "none";
+    canvas.style.display = "block";
+    clock.style.display = "block";
+    resize();
+    initStars();
+    updateClock();
+    running = true;
+    animate();
+};
+</script>
+</body>
+</html>
